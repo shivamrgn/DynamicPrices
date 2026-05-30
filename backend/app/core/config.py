@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     USE_IN_MEMORY_DB: bool = False
 
     # MongoDB
-    MONGODB_URL: str = "mongodb://admin:dpe_secret_2024@localhost:27017/dynamic_pricing?authSource=admin"
+    MONGO_URL: str = ""  # Set by Railway environment variable
     DATABASE_NAME: str = "dynamic_pricing"
 
     # Redis
