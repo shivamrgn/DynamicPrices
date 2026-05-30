@@ -1,0 +1,58 @@
+name: Deploy Dynamic Pricing Engine (self-hosted)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create deployment .env files on runner
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p backend frontend
+
+          # Backend env (FastAPI)
+          cat > backend/.env <<'EOF'
+          MONGODB_URL=${{ secrets.MONGODB_URL }}
+          DATABASE_NAME=${{ secrets.DATABASE_NAME || 'dynamic_pricing' }}
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          ENVIRONMENT=${{ secrets.ENVIRONMENT || 'production' }}
+          EOF
+
+          # Frontend env (Next.js)
+          cat > frontend/.env.local <<'EOF'
+          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          EOF
+
+      - name: Deploy with docker compose
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Keep a predictable working directory on runner
+          # NOTE: You can set REPO_DIR as a secret to control the path.
+          REPO_DIR=${{ secrets.REPO_DIR || github.workspace }}
+
+          echo "Using REPO_DIR=$REPO_DIR"
+
+          # If your runner already has the repo checked out, you can skip checkout.
+          # Here we copy files to ensure compose context is correct.
+          rsync -az --delete ./ "$REPO_DIR"/
+
+          cd "$REPO_DIR"
+
+          # Build & restart
+          docker compose up -d --build
+
+          # Seed data (optional; safe to re-run in most cases)
+          docker compose exec -T backend python -m app.db.seed || true
+

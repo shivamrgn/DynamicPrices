@@ -1,0 +1,71 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: dpe_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: dpe_secret_2024
+      MONGO_INITDB_DATABASE: dynamic_pricing
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./backend/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - dpe_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dpe_backend
+    restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://admin:dpe_secret_2024@mongodb:27017/dynamic_pricing?authSource=admin
+      - DATABASE_NAME=dynamic_pricing
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=dpe_super_secret_key_change_in_production
+      - ENVIRONMENT=production
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - dpe_network
+    volumes:
+      - ./backend:/app
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: dpe_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - dpe_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dpe_frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - dpe_network
+
+volumes:
+  mongo_data:
+
+networks:
+  dpe_network:
+    driver: bridge
