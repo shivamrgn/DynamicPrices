@@ -336,7 +336,7 @@ async def connect_to_mongo():
 
     try:
         mongodb.client = AsyncIOMotorClient(
-            settings.MONGODB_URL,
+            settings.MONGO_URL,
             maxPoolSize=50,
             minPoolSize=10,
             serverSelectionTimeoutMS=5000,
